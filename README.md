@@ -1,5 +1,7 @@
+-- // Load UI from external repo (already defined)
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ZyrusEXE/Lxcid/main/lxcid%20lua"))()
 
+-- Wait for UI to fully load
 task.wait(0.5)
 local Options = Library.Options
 local Toggles = Library.Toggles
@@ -44,7 +46,6 @@ local predictionTable = {
 }
 
 -- ======================== HELPERS ========================
--- ROBUST WALLCHECK (modern + legacy fallback)
 local function IsBehindWall(targetPart)
     if not LocalPlayer.Character or not targetPart or not targetPart.Parent then return false end
     local origin = Camera.CFrame.Position
@@ -53,7 +54,6 @@ local function IsBehindWall(targetPart)
 
     local dir = direction.Unit * 500
 
-    -- 1. Try modern raycast
     local success, result = pcall(function() return Workspace:Raycast(origin, dir) end)
     if success then
         if result then
@@ -65,7 +65,6 @@ local function IsBehindWall(targetPart)
         return false
     end
 
-    -- 2. Fallback to legacy FindPartOnRay
     local success2, hit = pcall(function()
         local ray = Ray.new(origin, dir)
         local ignore = {LocalPlayer.Character, targetPart.Parent}
@@ -422,31 +421,22 @@ task.spawn(function()
 end)
 
 -- ======================== P1000 DESYNC (SAFE HOOK) ========================
-local DesyncActive = false
 local DesyncStore = {}
 
--- Manual toggle key (P)
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.P then
         Toggles.P1000Desync:SetValue(not Toggles.P1000Desync.Value)
     end
-    -- Rejoin (=)
     if input.KeyCode == Enum.KeyCode.Equals then
         game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
     end
 end)
 
--- Helper functions from P1000
 local function RandomNumberRange(a)
     return math.random(-a * 100, a * 100) / 100
 end
 
-local function RandomVectorRange(a, b, c)
-    return Vector3.new(RandomNumberRange(a), RandomNumberRange(b), RandomNumberRange(c))
-end
-
--- SAFE desync CFrame hook
 local XDDDDDD = nil
 pcall(function()
     XDDDDDD = hookmetamethod(game, "__index", newcclosure(function(self, key)
@@ -466,13 +456,11 @@ pcall(function()
     end))
 end)
 if not XDDDDDD then
-    -- Hook failed – disable desync
     Toggles.P1000Desync:SetValue(false)
     Toggles.EnableAntiLock:SetValue(false)
     warn("P1000 Desync unavailable – executor missing hookmetamethod/newcclosure/checkcaller.")
 end
 
--- Desync Heartbeat loop (only runs if hook succeeded)
 RunService.Heartbeat:Connect(function()
     if Toggles.EnableAntiLock.Value and Toggles.P1000Desync.Value and XDDDDDD then
         local char = LocalPlayer.Character
@@ -495,20 +483,14 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ======================== ANTI NETWORK (REMOVE SERVER OWNERSHIP) ========================
+-- ======================== ANTI NETWORK ========================
 RunService.Heartbeat:Connect(function()
     if Toggles.EnableAntiLock.Value and Toggles.AntiNetwork.Value then
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
             local hrp = char.HumanoidRootPart
-            -- Method 1: SetNetworkOwner to nil (requires high identity level)
-            pcall(function()
-                hrp:SetNetworkOwner(nil)
-            end)
-            -- Method 2: Fallback – set NetworkIsSleeping to true
-            pcall(function()
-                sethiddenproperty(hrp, "NetworkIsSleeping", true)
-            end)
+            pcall(function() hrp:SetNetworkOwner(nil) end)
+            pcall(function() sethiddenproperty(hrp, "NetworkIsSleeping", true) end)
         end
     end
 end)
@@ -592,3 +574,5 @@ if pcall(function() return Drawing.new end) then
     for _,p in ipairs(Players:GetPlayers()) do SetupESP(p) end
     Players.PlayerAdded:Connect(SetupESP)
 else warn("Drawing library missing.") end
+
+print("Lxcid - Full script loaded. T lock, P desync, = rejoin.")
